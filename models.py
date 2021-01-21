@@ -1,5 +1,12 @@
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///store.db"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = "475fyv>ni!s517ryjv%2g7u4icb48sio2l"
 
 
 db = SQLAlchemy()
@@ -28,7 +35,7 @@ class Dish(db.Model):
     price = db.Column(db.Integer, nullable=False)
     description = db.Column(db.String, nullable=False)
     picture = db.Column(db.String, nullable=False)
-    category = db.relationship('Category', back_populates='dishes')
+    category = db.relationship('Category', back_populates='meals')
     orders = db.relationship('Order', secondary=dishes_orders_association, back_populates='dishes')
 
 
@@ -36,7 +43,7 @@ class Category(db.Model):
     __tablename__ = 'categories'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String, nullable=False)
-    meals = db.relationship('Dish', back_populates='categories')
+    meals = db.relationship('Dish', back_populates='category')
     dish_id = db.Column(db.Integer, db.ForeignKey('dishes.id'), nullable=False)
 
 
@@ -50,6 +57,8 @@ class Order(db.Model):
     tel = db.Column(db.Integer, nullable=False)
     address = db.Column(db.String, nullable=False)
     basket = db.Column(db.String, nullable=False)
-    owner = db.relationship('User', back_populates='orders')
+    users = db.relationship('User', back_populates='orders')
     dishes = db.relationship('Dish', secondary=dishes_orders_association, back_populates='orders')
 
+
+db.create_all()
