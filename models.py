@@ -37,6 +37,7 @@ class Dish(db.Model):
     picture = db.Column(db.String, nullable=False)
     category = db.relationship('Category', back_populates='meals')
     orders = db.relationship('Order', secondary=dishes_orders_association, back_populates='dishes')
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
 
 
 class Category(db.Model):
@@ -44,7 +45,6 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String, nullable=False)
     meals = db.relationship('Dish', back_populates='category')
-    dish_id = db.Column(db.Integer, db.ForeignKey('dishes.id'), nullable=False)
 
 
 class Order(db.Model):
