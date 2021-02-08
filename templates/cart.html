@@ -60,10 +60,13 @@
 
                       {{ form.summ(value=session['total']) }}
            <!--<input type="hidden" value = "875" name="order_summ">-->
-                      {{ form.cart(value=session['cart']) }}
-           {% for err in form.cart.errors %}
+                      {{ form.cart(value=session.get('cart', False)) }}
+                <!--{% for err in form.cart.errors %}
                 <p style="color: red">{{ err }}</p>                         
-              {% endfor %} 
+                {% endfor %} -->
+           {% if session.get('cart_is_False', False) == True %}
+                <p style="color: red">Нужно выбрать то, что вам понравилось</p>                         
+           {% endif %} 
            <!--<input type="hidden" value="[1,3,4]" name="order_cart">-->
 
 

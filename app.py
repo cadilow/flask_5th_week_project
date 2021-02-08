@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, SubmitField, HiddenField
-from wtforms.validators import InputRequired, Email, ValidationError
+from wtforms.validators import InputRequired, Email, ValidationError, Length
 
 #from config import Config
 #from models import db
@@ -92,7 +92,7 @@ class Cart(FlaskForm):
         [InputRequired(message='Нельзя оставить поле пустым'), phone_validator]
         )
     summ = HiddenField()
-    cart = HiddenField([InputRequired(message='Нужно выбрать то, что вам понравилось')])
+    cart = HiddenField([Length(min=1, message='Нужно выбрать то, что вам понравилось')])
     submit = SubmitField('Оформить заказ')
 
 
@@ -134,16 +134,24 @@ def delcart(id):
     session['cart'] = cart
     session['total'] -= db.session.query(Dish).filter(Dish.id == id).first().price 
     session['is_delete_dish'] = True
-    session['redirect'] = True
+    session['is_delete_dish_confirm'] = True
     return redirect('/cart/')
 
 
 @app.route('/cart/', methods=['GET', 'POST'])
 def cart():
-    if session.get('redirect', False) is False:
+    # единоразовое выведение сообщения об удалении из корзины
+    if session.get('is_delete_dish_confirm', False) is False:
         session['is_delete_dish'] = False
-    if session.get('redirect', False) and session.get('is_delete_dish', False):
-        session['redirect'] = False
+    if session.get('is_delete_dish_confirm', False):
+        session['is_delete_dish_confirm'] = False
+    
+    # единоразовое выведение ошибки, если корзина пуста при оформлении заказа
+    if session.get('cart_is_False_confirm', False) is False:
+        session['cart_is_False'] = False
+    if session.get('cart_is_False_confirm', False):
+        session['cart_is_False_confirm'] = False
+
     if session.get('cart', False) == False:
         session['cart'] = []
     form = Cart()
@@ -154,6 +162,10 @@ def cart():
         tel = form.tel.data
         summ = session.get('summ', False)
         cart = session.get('cart', False)
+        if cart is False or cart == []:
+            session['cart_is_False'] = True
+            session['cart_is_False_confirm'] = True
+            return redirect('/cart/')
         if form.validate_on_submit():
             if session.get('is_auth', False) == True:
                 order = Order(
