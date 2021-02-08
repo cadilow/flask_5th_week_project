@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, SubmitField, HiddenField
-from wtforms.validators import InputRequired, Email
+from wtforms.validators import InputRequired, Email, ValidationError
 
 #from config import Config
 #from models import db
