@@ -165,7 +165,7 @@ def cart():
                     tel=tel,
                     total=summ,
                     status='a',
-                    user_id=db.session.query(User).filter(User.mail==mail).first()
+                    # user_id=db.session.query(User).filter(User.mail==mail).first()
                 )
                 for i in cart:
                     dish = db.session.query(Dish).filter(Dish.id==i).first()
