@@ -1,6 +1,6 @@
 import csv
 
-from models import db, Dish
+from app import db, Dish, Category
 
 
 with open('csv/meals.csv') as f:
@@ -10,13 +10,13 @@ with open('csv/meals.csv') as f:
         if i == 0:
             i += 1
             continue
-        print(row)
+        category = db.session.query(Category).filter(Category.category_id == row[5]).first()
         dish = Dish(
             title=row[1],
             price=row[2],
             description=row[3],
             picture=row[4],
-            category=row[5]
+            category=category
         )
         db.session.add(dish)
     db.session.commit()

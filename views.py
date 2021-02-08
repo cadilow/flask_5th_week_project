@@ -1,26 +1,28 @@
 from flask import render_template, request
 
-from app import app
+from app import app, db
+from models import User, Dish, Category, Order, dishes_orders_association
 
 
 @app.route('/')
 def main():
-    pass
+    content = db.session.query(Dish).all()
+    return render_template('main.html', content=content)
 
 
 @app.route('/cart/')
 def cart():
-    pass
+    return render_template('cart.html')
 
 
 @app.route('/account/')
 def account():
-    pass
+    return render_template('account.html')
 
 
 @app.route('/auth/')
 def auth():
-    pass
+    return render_template('auth.html')
 
 
 @app.route('/register/')
@@ -35,5 +37,5 @@ def logout():
 
 @app.route('/ordered/')
 def ordered():
-    pass
+    return render_template('ordered.html')
 
