@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, SubmitField, HiddenField
-from wtforms.validators import InputRequired, Email, Regexp
+from wtforms.validators import InputRequired, Email
 
 #from config import Config
 #from models import db
@@ -78,13 +78,18 @@ class Order(db.Model):
 # Формы
 
 
+def phone_validator(form, value):
+    if len(str(value.data)) != 10:
+        raise ValidationError('Формат ввода  номера телефона: "1234567890"')
+
+
 class Cart(FlaskForm):
     name = StringField('Имя', [InputRequired(message='Нужно ввести имя')])
     address = StringField('Адрес', [InputRequired(message='Нужно ввести адрес')])
     mail = StringField('E-mail', [Email(message='Неправильная почта')])
     tel = IntegerField(
-        'Телефон', 
-        [Regexp(r'\d\d\d\d\d\d\d\d\d\d', message='Формат ввода  номера телефона: "1234567890"')]
+        'Телефон',
+        [InputRequired(message='Нельзя оставить поле пустым'), phone_validator]
         )
     summ = HiddenField()
     cart = HiddenField([InputRequired(message='Нужно выбрать то, что вам понравилось')])

@@ -16,10 +16,11 @@
 
         <div class="col-4">
           <form action="/cart/" method="POST">
+            <!--{{ form.hidden_tag()}}-->
           <h4 class="">Ваши данные</h4>
           <div class=" md-4 order-md-1">
             <div class="mt-3 mb-3">
-              {% for err in form.name.errors %}
+              {% for err in form.errors %}
                 <p>{{ err }}</p>                         
               {% endfor %} 
               <label for="name">Ваше имя</label>
