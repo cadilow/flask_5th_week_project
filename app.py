@@ -91,8 +91,8 @@ class Cart(FlaskForm):
         'Телефон',
         [InputRequired(message='Нельзя оставить поле пустым'), phone_validator]
         )
-    summ = HiddenField()
-    cart = HiddenField([Length(min=1, message='Нужно выбрать то, что вам понравилось')])
+    # summ = HiddenField()
+    # cart = HiddenField([Length(min=1, message='Нужно выбрать то, что вам понравилось')])
     submit = SubmitField('Оформить заказ')
 
 
@@ -160,7 +160,7 @@ def cart():
         address = form.address.data
         mail = form.mail.data
         tel = form.tel.data
-        summ = session.get('summ', False)
+        summ = session.get('total', False)
         cart = session.get('cart', False)
         if cart is False or cart == []:
             session['cart_is_False'] = True
@@ -181,6 +181,8 @@ def cart():
                     dish = db.session.query(Dish).filter(Dish.id==i).first()
                     order.dishes.append(dish)
                 db.session.commit()
+                session['total'] = 0
+                session['cart'] = []
             else:
                 order = Order(
                     name=name,
@@ -195,6 +197,8 @@ def cart():
                     dish = db.session.query(Dish).filter(Dish.id==i).first()
                     order.dishes.append(dish)
                 db.session.commit()
+                session['total'] = 0
+                session['cart'] = []
             return redirect('/ordered/')
         else:
             return render_template('cart.html', Dish=Dish, form=form)
