@@ -151,7 +151,7 @@ def cart():
         name = form.name.data
         address = form.address.data
         mail = form.mail.data
-        tel = str(form.tel.data)
+        tel = form.tel.data
         summ = form.summ.data
         cart = form.cart.data
         result = ''
