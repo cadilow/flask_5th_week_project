@@ -152,15 +152,8 @@ def cart():
         address = form.address.data
         mail = form.mail.data
         tel = form.tel.data
-        summ = form.summ.data
-        cart = form.cart.data
-        result = ''
-        for i in cart:
-            if i =='[' or i ==']' or i =='\'' or i ==' ':
-                result += ''
-            else:
-                result += i
-        cart = result.split(',')
+        summ = session.get('summ', False)
+        cart = session.get('cart', False)
         if form.validate_on_submit():
             if session.get('is_auth', False) == True:
                 order = Order(

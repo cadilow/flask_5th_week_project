@@ -58,9 +58,9 @@
               <!--<input type="text" class="font-weight-bold form-control" id="name">-->
             </div>
 
-            {{ form.summ(value=session['total']) }}
+                      {{ form.summ(value=session['total']) }}
            <!--<input type="hidden" value = "875" name="order_summ">-->
-           {{ form.cart(value=session['cart']) }}
+                      {{ form.cart(value=session['cart']) }}
            {% for err in form.cart.errors %}
                 <p style="color: red">{{ err }}</p>                         
               {% endfor %} 
