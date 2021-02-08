@@ -106,7 +106,7 @@ def main():
     #dishes = db.session.query(Dish).order_by(db.func.random()).all()
     dishes = []
     for i in range(1, len(categories)+1):
-        dishes.append(db.session.query(Dish).filter(Dish.category_id == i).order_by(db.func.random()).limit(3).all())
+        dishes.append(db.session.query(Dish).filter(Dish.category_id==i).order_by(db.func.random()).limit(3).all())
     return render_template(
         'main.html', 
         categories=categories, 
@@ -123,7 +123,7 @@ def precart(id):
     session['cart'] = cart 
     if session.get('total', False) == False:
         session['total'] = 0
-    session['total'] += db.session.query(Dish).filter(Dish.id == id).first().price 
+    session['total'] += db.session.query(Dish).filter(Dish.id==id).first().price 
     return redirect('/cart/')
 
 
@@ -132,7 +132,7 @@ def delcart(id):
     cart = session['cart']
     cart.remove(id)
     session['cart'] = cart
-    session['total'] -= db.session.query(Dish).filter(Dish.id == id).first().price 
+    session['total'] -= db.session.query(Dish).filter(Dish.id==id).first().price 
     session['is_delete_dish'] = True
     session['is_delete_dish_confirm'] = True
     return redirect('/cart/')
