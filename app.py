@@ -1,9 +1,12 @@
+import re
+
 from flask import Flask, render_template, session, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from flask_wtf import FlaskForm
-from wtforms import StringField, IntegerField, SubmitField, HiddenField
-from wtforms.validators import InputRequired, Email, ValidationError, Length
+from wtforms import StringField, IntegerField, SubmitField, HiddenField, PasswordField
+from wtforms.validators import InputRequired, Email, ValidationError, Length, EqualTo
+from werkzeug.security import generate_password_hash, check_password_hash
 
 #from config import Config
 #from models import db
@@ -83,6 +86,17 @@ def phone_validator(form, value):
         raise ValidationError('Формат ввода  номера телефона: "1234567890"')
 
 
+def check_password(form, value):
+    msg = "Пароль должен содержать латинские сивмолы в верхнем и нижнем регистре и цифры"
+    patern1 = re.compile('[a-z]+')
+    patern2 = re.compile('[A-Z]+')
+    patern3 = re.compile('\\d+')
+    if (not patern1.search(value.data) or
+        not patern2.search(value.data) or
+        not patern3.search(value.data)):
+        raise ValidationError(msg)
+
+
 class Cart(FlaskForm):
     name = StringField('Имя', [InputRequired(message='Нужно ввести имя')])
     address = StringField('Адрес', [InputRequired(message='Нужно ввести адрес')])
@@ -94,6 +108,23 @@ class Cart(FlaskForm):
     # summ = HiddenField()
     # cart = HiddenField([Length(min=1, message='Нужно выбрать то, что вам понравилось')])
     submit = SubmitField('Оформить заказ')
+
+
+class Registration(FlaskForm):
+    mail = StringField('E-mail', [InputRequired(message='Нужно ввести почту'), Email(message='Неправильная почта')])
+    password = PasswordField('Пароль', [
+        InputRequired(message='Введите пароль'),
+        Length(min=5, message='Пароль не может быть короче 5 символов'),
+        check_password
+        ])
+    password_confirm = PasswordField('Подтверждение пароля', [EqualTo('password', message='Пароли не одинаковые')])
+    submit = SubmitField('Зарегистрироваться')
+
+
+class Authentication(FlaskForm):
+    mail = StringField('E-mail', [InputRequired(message='Нужно ввести почту'), Email(message='Неправильная почта')])
+    password = PasswordField('Пароль', [InputRequired(message='Введите пароль')])
+    submit = SubmitField('Войти')
 
 
 #from views import *
@@ -207,22 +238,60 @@ def cart():
 
 @app.route('/account/')
 def account():
-    return render_template('account.html')
+    if session.get('user_id', False):
+        user = db.session.query(User).filter(User.id==session['user_id']).first()
+        orders = db.session.query(Order).filter(Order.email==user.mail).order_by(Order.date)[::-1]
+        return render_template('account.html', user=user, orders=orders)
+    return redirect('/auth/')
 
 
-@app.route('/auth/')
+@app.route('/auth/', methods=['GET', 'POST'])
 def auth():
-    return render_template('auth.html')
+    form = Authentication()
+    err = ''
+    if session.get('user_id', False):
+        return redirect('/')
+    if request.method == 'POST':
+        mail = form.mail.data
+        password = form.password.data
+        user = db.session.query(User).filter(User.mail==mail).first()
+        if user:
+            if check_password_hash(user.password, password):
+                session['user_id'] = user.id
+                return redirect('/account/')
+        else:
+            err = 'Не верная почта или пароль'
+    return render_template('auth.html', form=form, err=err)
 
 
-@app.route('/register/')
+@app.route('/register/', methods=['GET', 'POST'])
 def register():
-    return render_template('register.html')
+    form = Registration()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            mail = form.mail.data
+            password = form.password.data
+            password_confirm = form.password_confirm.data
+            user = db.session.query(User).filter(User.mail==mail).first()
+            if user:
+                err = 'Такой пользователь уже существует'
+                return render_template('register.html', form=form, err=err)
+            else:
+                password_hash = generate_password_hash(password)
+                user = User(mail=mail, password=password_hash)
+                db.session.add(user)
+                db.session.commit()
+                session['user_id'] = user.id
+                return redirect('/account/')
+    return render_template('register.html', form=form)
 
 
-@app.route('/logout/')
+@app.route('/logout/', methods=['POST'])
 def logout():
-    pass
+    if request.method == 'POST':
+        if session.get('user_id', False):
+            session['user_id'] = False
+    return redirect('/')
 
 
 @app.route('/ordered/')

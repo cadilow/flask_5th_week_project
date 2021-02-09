@@ -7,8 +7,8 @@
     {% if session.get("is_delete_dish", False) == True %}
     <div class="alert alert-warning" role="alert">Блюдо удалено из корзины</div>
     {% endif %}
-    {% if session.get("is_auth", False) == False %}
-    <div class="alert alert-warning" role="alert">Чтобы сделать заказ – <a href="/login.html">войдите</a> или <a href="/register.html">зарегистрируйтесь</a></div>
+    {% if session.get("user_id", False) == False %}
+    <div class="alert alert-warning" role="alert">Чтобы сделать заказ – <a href="/auth/">войдите</a> или <a href="/register/">зарегистрируйтесь</a></div>
     {% endif %}
 
     <div class="row mt-5">
