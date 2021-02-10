@@ -5,6 +5,9 @@
     <section class="row">
       <div class="col-12 col-lg-8">
         <h1 class="h3 my-5">Личный кабинет. Заказы {{ user.mail }}</h1>
+        {% if not orders %}
+        <span class="h4 font-weight-bold">Вы еще ничего не заказывали</span>
+        {% endif %}
        {% for i in orders %}
         <div class="mt-4 card">
           <ul class="list-group list-group-flush">
@@ -13,6 +16,11 @@
                 <div class="col-7 col-lg-9">
                   <span class="h5 font-weight-bold">{{ i.date }}</span>
                   <span class="h5">- {{ i.total }}р</span>
+                  {% if i.status == 'a' %}
+                  <span class="badge rounded-pill bg-info text-white">Заказ в процессе доставки</span>
+                  {% elif i.status == 'b' %}
+                  <span class="badge rounded-pill bg-success text-white">Заказ закрыт</span>
+                  {% endif %}
                 </div>
 
               </div>

@@ -8,7 +8,7 @@
     <div class="alert alert-warning" role="alert">Блюдо удалено из корзины</div>
     {% endif %}
     {% if session.get("user_id", False) == False %}
-    <div class="alert alert-warning" role="alert">Чтобы сделать заказ – <a href="/auth/">войдите</a> или <a href="/register/">зарегистрируйтесь</a></div>
+    <div class="alert alert-warning" role="alert">Чтобы отслеживать заказ – <a href="/auth/">войдите</a> или <a href="/register/">зарегистрируйтесь</a></div>
     {% endif %}
 
     <div class="row mt-5">
@@ -60,8 +60,13 @@
        
            <!--<input type="hidden" value = "875" name="order_summ">-->
                       
-           {% if session.get('cart_is_False', False) == True %}
-                <p style="color: red">Нужно выбрать то, что вам понравилось</p>                         
+           {% if session.get('cart_error', False) == True %}
+           <!--{% if error %}
+                <p style="color: red">{{ error }}</p>
+           {% endif %}  -->
+           {% if session.get("error", False) %}
+                <p style="color: red">{{ session['error'] }}</p>
+           {% endif %}                       
            {% endif %} 
            <!--<input type="hidden" value="[1,3,4]" name="order_cart">-->
 

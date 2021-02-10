@@ -1,4 +1,6 @@
 import re
+import time
+import random
 
 from flask import Flask, render_template, session, redirect, request
 from flask_sqlalchemy import SQLAlchemy
@@ -7,6 +9,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, SubmitField, HiddenField, PasswordField
 from wtforms.validators import InputRequired, Email, ValidationError, Length, EqualTo
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
 
 #from config import Config
 #from models import db
@@ -17,12 +20,20 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///store.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = "475fyv>ni!s517ryjv%2g7u4icb48sio2l"
+app.config['MAIL_SERVER'] = 'smtp.mail.ru'
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'stepik_test@list.ru'
+app.config['MAIL_PASSWORD'] = 'test'
+mail = Mail(app)
 #app.config.from_object(Config)
 
 # migrate = Migrate(app, db)
 
 #db.init_app(app)
 db = SQLAlchemy(app)
+
+request_counte = 0
 
 
 class User(db.Model):
@@ -121,6 +132,13 @@ class Registration(FlaskForm):
     submit = SubmitField('Зарегистрироваться')
 
 
+class RegistrationConfirm(FlaskForm):
+    code_confirm = StringField('Код подтверждения', [InputRequired(
+        message='Введите код подтверждения, который был отправлен на вашу регистрационную почту'
+        )])
+    submit = SubmitField('Подтвердить')
+
+
 class Authentication(FlaskForm):
     mail = StringField('E-mail', [InputRequired(message='Нужно ввести почту'), Email(message='Неправильная почта')])
     password = PasswordField('Пароль', [InputRequired(message='Введите пароль')])
@@ -146,6 +164,11 @@ def main():
 
 @app.route('/precart/<id>/')
 def precart(id):
+    if id in session.get('cart', False):
+        session['error'] = 'Можно заказать только одну порцию блюда за раз'
+        session['cart_error'] = True
+        session['cart_error_confirm'] = True
+        return redirect('/cart/')
     if session.get('cart', False):
         cart = session['cart']
     else:
@@ -177,11 +200,11 @@ def cart():
     if session.get('is_delete_dish_confirm', False):
         session['is_delete_dish_confirm'] = False
     
-    # единоразовое выведение ошибки, если корзина пуста при оформлении заказа
-    if session.get('cart_is_False_confirm', False) is False:
-        session['cart_is_False'] = False
-    if session.get('cart_is_False_confirm', False):
-        session['cart_is_False_confirm'] = False
+    # единоразовое выведение ошибки
+    if session.get('cart_error_confirm', False) is False:
+        session['cart_error'] = False
+    if session.get('cart_error_confirm', False):
+        session['cart_error_confirm'] = False
 
     if session.get('cart', False) == False:
         session['cart'] = []
@@ -194,8 +217,9 @@ def cart():
         summ = session.get('total', False)
         cart = session.get('cart', False)
         if cart is False or cart == []:
-            session['cart_is_False'] = True
-            session['cart_is_False_confirm'] = True
+            session['cart_error'] = True
+            session['cart_error_confirm'] = True
+            session['error'] = 'Нужно выбрать то, что вам понравилось'
             return redirect('/cart/')
         if form.validate_on_submit():
             if session.get('is_auth', False) == True:
@@ -259,7 +283,11 @@ def auth():
             if check_password_hash(user.password, password):
                 session['user_id'] = user.id
                 return redirect('/account/')
+            else:
+                time.sleep(0.5)
+                err = 'Не верная почта или пароль'
         else:
+            time.sleep(0.5)
             err = 'Не верная почта или пароль'
     return render_template('auth.html', form=form, err=err)
 
@@ -277,13 +305,67 @@ def register():
                 err = 'Такой пользователь уже существует'
                 return render_template('register.html', form=form, err=err)
             else:
-                password_hash = generate_password_hash(password)
+                session['user_confirm_registration'] = {
+                    'mail': mail,
+                    'password': password
+                }
+                return redirect('/register_confirm/')
+                '''password_hash = generate_password_hash(password)
                 user = User(mail=mail, password=password_hash)
                 db.session.add(user)
                 db.session.commit()
                 session['user_id'] = user.id
-                return redirect('/account/')
+                return redirect('/account/')'''
     return render_template('register.html', form=form)
+
+
+@app.route('/register_confirm/', methods=['GET', 'POST'])
+def register_confirm():
+    form = RegistrationConfirm()
+    if request.method == 'POST':
+        code_confirm = form.code_confirm.data
+        if code_confirm == session['request_confirm_pass']:
+            password_hash = generate_password_hash(session['user_confirm_registration']['password'])
+            user = User(mail=session['user_confirm_registration']['mail'], password=password_hash)
+            db.session.add(user)
+            db.session.commit()
+            session['user_id'] = user.id
+            session['user_confirm_registration'] = {}
+            session['request_confirm_pass'] = False
+            session['error'] = False
+            return redirect('/account/')
+        session['error'] = 'Не верный код подтверждения'
+        session['register_error'] = True
+        session['register_error_confirm'] = True
+        return render_template('register_confirm.html', form=form)
+    if not session.get('request_confirm_pass', False) or session.get('request_confirm_pass',False) == '':
+        if session['user_confirm_registration'] and session['user_confirm_registration'] != {}:
+            request_counte += 1
+            request_confirm_pass = ''
+            for i in range(4):
+                request_confirm_pass += str(random.randint(0, 9))
+            with app.app_context():
+                subject = 'Подтверждение регистрации'
+                sender = app.config['MAIL_USERNAME']
+                recipients = [session['user_confirm_registration']['mail']]
+                text_body = f'Для подтверждения регистрации введите код {request_confirm_pass} (сессия №{request_counte})'
+                msg = Message(
+                    subject,
+                    sender=sender,
+                    recipients=recipients
+                )
+                msg.body = text_body
+                mail.send(msg)
+                session['request_counte'] = request_counte
+                session['request_confirm_pass'] = request_confirm_pass
+                return render_template('register_confirm.html', form=form)
+        else:
+            return redirect('/register/')
+    if session.get('register_error_confirm', False) is False:
+        session['register_error'] = False
+    if session.get('register_error_confirm', False):
+        session['register_error_confirm'] = False
+    return render_template('register_confirm.html', form=form)
 
 
 @app.route('/logout/', methods=['POST'])
@@ -291,7 +373,7 @@ def logout():
     if request.method == 'POST':
         if session.get('user_id', False):
             session['user_id'] = False
-    return redirect('/')
+    return redirect('/auth/')
 
 
 @app.route('/ordered/')
