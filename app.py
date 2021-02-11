@@ -10,6 +10,8 @@ from wtforms import StringField, IntegerField, SubmitField, HiddenField, Passwor
 from wtforms.validators import InputRequired, Email, ValidationError, Length, EqualTo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
 
 #from config import Config
 #from models import db
@@ -26,14 +28,13 @@ app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = 'stepik_test@list.ru'
 app.config['MAIL_PASSWORD'] = 'test'
 mail = Mail(app)
+
 #app.config.from_object(Config)
 
 # migrate = Migrate(app, db)
 
 #db.init_app(app)
 db = SQLAlchemy(app)
-
-request_counte = 0
 
 
 class User(db.Model):
@@ -84,6 +85,13 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     user = db.relationship('User', back_populates='orders')
     dishes = db.relationship('Dish', secondary=dishes_orders_association, back_populates='orders')
+
+
+admin = Admin(app)
+admin.add_view(ModelView(User, db.session))
+admin.add_view(ModelView(Dish, db.session))
+admin.add_view(ModelView(Category, db.session))
+admin.add_view(ModelView(Order, db.session))
 
 
 #db.create_all()
@@ -137,6 +145,28 @@ class RegistrationConfirm(FlaskForm):
         message='Введите код подтверждения, который был отправлен на вашу регистрационную почту'
         )])
     submit = SubmitField('Подтвердить')
+
+
+class Restore(FlaskForm):
+    mail = StringField('E-mail', [InputRequired(message='Нужно ввести почту'), Email(message='Неправильная почта')])
+    submit = SubmitField('Восстановить')
+
+
+class RestoreConfirm(FlaskForm):
+    code_confirm = StringField('Код подтверждения', [InputRequired(
+        message='Введите код подтверждения, который был отправлен на вашу регистрационную почту'
+        )])
+    submit = SubmitField('Подтвердить')
+
+
+class RestoreComplete(FlaskForm):
+    password = PasswordField('Пароль', [
+        InputRequired(message='Введите пароль'),
+        Length(min=5, message='Пароль не может быть короче 5 символов'),
+        check_password
+        ])
+    password_confirm = PasswordField('Подтверждение пароля', [EqualTo('password', message='Пароли не одинаковые')])
+    submit = SubmitField('Сменить пароль')
 
 
 class Authentication(FlaskForm):
@@ -323,24 +353,28 @@ def register():
 def register_confirm():
     form = RegistrationConfirm()
     if request.method == 'POST':
-        code_confirm = form.code_confirm.data
-        if code_confirm == session['request_confirm_pass']:
-            password_hash = generate_password_hash(session['user_confirm_registration']['password'])
-            user = User(mail=session['user_confirm_registration']['mail'], password=password_hash)
-            db.session.add(user)
-            db.session.commit()
-            session['user_id'] = user.id
-            session['user_confirm_registration'] = {}
-            session['request_confirm_pass'] = False
-            session['error'] = False
-            return redirect('/account/')
-        session['error'] = 'Не верный код подтверждения'
-        session['register_error'] = True
-        session['register_error_confirm'] = True
-        return render_template('register_confirm.html', form=form)
+        if form.validate_on_submit():
+            code_confirm = form.code_confirm.data
+            if code_confirm == session['request_confirm_pass']:
+                password_hash = generate_password_hash(session['user_confirm_registration']['password'])
+                user = User(mail=session['user_confirm_registration']['mail'], password=password_hash)
+                db.session.add(user)
+                db.session.commit()
+                session['user_id'] = user.id
+                session['user_confirm_registration'] = {}
+                session['request_confirm_pass'] = False
+                session['error'] = False
+                return redirect('/account/')
+            time.sleep(0.5)
+            session['error'] = 'Не верный код подтверждения'
+            session['register_error'] = True
+            session['register_error_confirm'] = True
+            return render_template('register_confirm.html', form=form)
     if not session.get('request_confirm_pass', False) or session.get('request_confirm_pass',False) == '':
         if session['user_confirm_registration'] and session['user_confirm_registration'] != {}:
-            request_counte += 1
+            request_counte = ''
+            for i in range(4):
+                request_counte += str(random.randint(0, 9))
             request_confirm_pass = ''
             for i in range(4):
                 request_confirm_pass += str(random.randint(0, 9))
@@ -367,6 +401,96 @@ def register_confirm():
         session['register_error_confirm'] = False
     return render_template('register_confirm.html', form=form)
 
+
+@app.route('/restore/', methods=['GET', 'POST'])
+def restore():
+    form = Restore()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            if db.session.query(User).filter(User.mail==form.mail.data).first():
+                session['mail_restore'] = form.mail.data
+                request_counte = ''
+                for i in range(4):
+                    request_counte += str(random.randint(0, 9))
+                request_code_confirm = ''
+                for i in range(4):
+                    request_code_confirm += str(random.randint(0, 9))
+                with app.app_context():
+                    subject = 'Восстановление пароля'
+                    sender = app.config['MAIL_USERNAME']
+                    recipients = [session['mail_restore']]
+                    text_body = f'Для восстановления пароля введите код {request_code_confirm} (сессия №{request_counte})'
+                    msg = Message(
+                        subject,
+                        sender=sender,
+                        recipients=recipients
+                    )
+                    msg.body = text_body
+                    mail.send(msg)
+                session['request_counte'] = request_counte
+                session['request_code_confirm'] = request_code_confirm
+                return redirect('/restore_confirm/')
+            else:
+                time.sleep(0.5)
+                session['error'] = 'В базе нет такого пользователя'
+                session['find_error'] = True
+                session['find_error_confirm'] = True
+                return render_template('/restore.html/', form=form)
+    if session.get('find_error_confirm', False) is False:
+        session['find_error'] = False
+    if session.get('find_error_confirm', False):
+        session['find_error_confirm'] = False
+    return render_template('restore.html', form=form)
+
+
+@app.route('/restore_confirm/', methods=['GET', 'POST'])
+def restore_confirm():
+    form = RestoreConfirm()
+    if session.get('request_code_confirm', False):
+        if request.method == 'POST':
+            if form.validate_on_submit():
+                code_confirm = form.code_confirm.data
+                if code_confirm == session['request_code_confirm']:
+                    session['mail_complete_restore'] = session['mail_restore']
+                    session['mail_restore'] = False
+                    session['request_counte'] = False
+                    session['request_code_confirm'] = False
+                    return redirect('/restore_complete/')
+                else:
+                    time.sleep(0.5)
+                    session['error'] = 'Не верный код подтверждения'
+                    session['restore_error'] = True
+                    session['restore_error_confirm'] = True
+                    return render_template('restore_confirm.html', form=form)
+        if session.get('restore_error_confirm', False) is False:
+            session['restore_error'] = False
+        if session.get('restore_error_confirm', False):
+            session['restore_error_confirm'] = False
+        return render_template('restore_confirm.html', form=form)
+    else:
+        return redirect('/restore/')
+
+
+@app.route('/restore_complete/', methods=['GET', 'POST'])
+def restore_complete():
+    if session.get('mail_complete_restore', False):
+        form = RestoreComplete()
+        if request.method == 'POST':
+            if form.validate_on_submit():
+                password = form.password.data
+                password_hash = generate_password_hash(password)
+                user_mail = session['mail_complete_restore']
+                user = db.session.query(User).filter(User.mail==user_mail).first()
+                user.password = password_hash
+                db.session.commit()
+                session['user_id'] = user.id
+                session['mail_complete_restore'] = False
+                session['error'] = False
+                return redirect('/account/')
+        else:
+            return render_template('restore_complete.html', form=form)
+    else:
+        return redirect('/restore/')
 
 @app.route('/logout/', methods=['POST'])
 def logout():
