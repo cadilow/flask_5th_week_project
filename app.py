@@ -26,7 +26,7 @@ app.config['MAIL_SERVER'] = 'smtp.mail.ru'
 app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = 'stepik_test@list.ru'
-app.config['MAIL_PASSWORD'] = 'test'
+app.config['MAIL_PASSWORD'] = 'AuAuMU31'
 mail = Mail(app)
 
 #app.config.from_object(Config)
