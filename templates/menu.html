@@ -4,6 +4,9 @@
       <a href="/" class="h5 my-2 text-white bg-dark">Stepik Delivery</a>
     </ul>
     <p class="my-2 text-white bg-dark">
+      {% if session.get('is_admin', False) %}
+      <a href="/admin/" class="text-white bg-dark">Админка</a> |
+      {% endif %}
       {% if session.get('user_id', False) %}
       <a href="/account/" class="text-white bg-dark">Мои заказы</a> |
       {% endif %}

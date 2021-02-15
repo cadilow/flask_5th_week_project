@@ -1,6 +1,7 @@
 import re
 import time
 import random
+from datetime import datetime
 
 from flask import Flask, render_template, session, redirect, request
 from flask_sqlalchemy import SQLAlchemy
@@ -12,6 +13,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
+
+from months import months
 
 #from config import Config
 #from models import db
@@ -29,6 +32,8 @@ app.config['MAIL_USERNAME'] = 'stepik_test@list.ru'
 app.config['MAIL_PASSWORD'] = 'AuAuMU31'
 mail = Mail(app)
 
+ADMIN_ACCESS = 1111
+
 #app.config.from_object(Config)
 
 # migrate = Migrate(app, db)
@@ -42,7 +47,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     mail = db.Column(db.String, nullable=False, unique=True)
     password = db.Column(db.String, nullable=False)
-    orders = db.relationship('Order', back_populates='user')
+    is_admin = db.Column(db.Boolean, nullable=False)
 
 
 dishes_orders_association = db.Table(
@@ -76,14 +81,12 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
-    date = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    date = db.Column(db.String, nullable=False)
     total = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     tel = db.Column(db.Integer, nullable=False)
     address = db.Column(db.String, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    user = db.relationship('User', back_populates='orders')
     dishes = db.relationship('Dish', secondary=dishes_orders_association, back_populates='orders')
 
 
@@ -116,6 +119,13 @@ def check_password(form, value):
         raise ValidationError(msg)
 
 
+def check_admin_code(form, value):
+    msg = 'В доступе к админ панеле отказано'
+    if value.data:
+        if value.data != str(ADMIN_ACCESS):
+            raise ValidationError(msg)
+
+
 class Cart(FlaskForm):
     name = StringField('Имя', [InputRequired(message='Нужно ввести имя')])
     address = StringField('Адрес', [InputRequired(message='Нужно ввести адрес')])
@@ -137,6 +147,7 @@ class Registration(FlaskForm):
         check_password
         ])
     password_confirm = PasswordField('Подтверждение пароля', [EqualTo('password', message='Пароли не одинаковые')])
+    admin_code = StringField('Код доступа администратора', [check_admin_code])
     submit = SubmitField('Зарегистрироваться')
 
 
@@ -252,38 +263,29 @@ def cart():
             session['error'] = 'Нужно выбрать то, что вам понравилось'
             return redirect('/cart/')
         if form.validate_on_submit():
-            if session.get('is_auth', False) == True:
-                order = Order(
-                    name=name,
-                    address=address,
-                    email=mail,
-                    tel=tel,
-                    total=summ,
-                    status='a',
-                    # user_id=db.session.query(User).filter(User.mail==mail).first()
-                )
-                for i in cart:
-                    dish = db.session.query(Dish).filter(Dish.id==i).first()
-                    order.dishes.append(dish)
-                db.session.commit()
-                session['total'] = 0
-                session['cart'] = []
-            else:
-                order = Order(
-                    name=name,
-                    address=address,
-                    email=mail,
-                    tel=tel,
-                    total=summ,
-                    status='a'
-                )
-                db.session.add(order)
-                for i in cart:
-                    dish = db.session.query(Dish).filter(Dish.id==i).first()
-                    order.dishes.append(dish)
-                db.session.commit()
-                session['total'] = 0
-                session['cart'] = []
+            day_of_month = datetime.strftime(datetime.now(), "%d")
+            raw_month = datetime.strftime(datetime.now(), "%m")
+            for i in months:
+                if i == str(raw_month):
+                    month = months[i]
+                    break
+            date = str(day_of_month) + ' ' + str(month)
+            order = Order(
+                name=name,
+                address=address,
+                email=mail,
+                tel=tel,
+                total=summ,
+                status='a',
+                date=date
+            )
+            db.session.add(order)
+            for i in cart:
+                dish = db.session.query(Dish).filter(Dish.id==i).first()
+                order.dishes.append(dish)
+            db.session.commit()
+            session['total'] = 0
+            session['cart'] = []
             return redirect('/ordered/')
         else:
             return render_template('cart.html', Dish=Dish, form=form)
@@ -312,6 +314,7 @@ def auth():
         if user:
             if check_password_hash(user.password, password):
                 session['user_id'] = user.id
+                session['is_admin'] = user.is_admin
                 return redirect('/account/')
             else:
                 time.sleep(0.5)
@@ -330,14 +333,20 @@ def register():
             mail = form.mail.data
             password = form.password.data
             password_confirm = form.password_confirm.data
+            admin_code = form.admin_code.data
             user = db.session.query(User).filter(User.mail==mail).first()
             if user:
                 err = 'Такой пользователь уже существует'
                 return render_template('register.html', form=form, err=err)
             else:
+                if admin_code == str(ADMIN_ACCESS):
+                    is_admin = True
+                else:
+                    is_admin = False
                 session['user_confirm_registration'] = {
                     'mail': mail,
-                    'password': password
+                    'password': password,
+                    'is_admin': is_admin
                 }
                 return redirect('/register_confirm/')
                 '''password_hash = generate_password_hash(password)
@@ -357,10 +366,14 @@ def register_confirm():
             code_confirm = form.code_confirm.data
             if code_confirm == session['request_confirm_pass']:
                 password_hash = generate_password_hash(session['user_confirm_registration']['password'])
-                user = User(mail=session['user_confirm_registration']['mail'], password=password_hash)
+                user = User(
+                    mail=session['user_confirm_registration']['mail'], 
+                    password=password_hash,
+                    is_admin=session['user_confirm_registration']['is_admin'])
                 db.session.add(user)
                 db.session.commit()
                 session['user_id'] = user.id
+                session['is_admin'] = user.is_admin
                 session['user_confirm_registration'] = {}
                 session['request_confirm_pass'] = False
                 session['error'] = False
@@ -487,22 +500,28 @@ def restore_complete():
                 session['mail_complete_restore'] = False
                 session['error'] = False
                 return redirect('/account/')
-        else:
-            return render_template('restore_complete.html', form=form)
+        return render_template('restore_complete.html', form=form)
     else:
         return redirect('/restore/')
 
 @app.route('/logout/', methods=['POST'])
 def logout():
     if request.method == 'POST':
-        if session.get('user_id', False):
-            session['user_id'] = False
+        # if session.get('user_id', False):
+        session['user_id'] = False
+        session['is_admin'] = False
     return redirect('/auth/')
 
 
 @app.route('/ordered/')
 def ordered():
     return render_template('ordered.html')
+
+
+'''@app.route('/admin/')
+def admin_panel():
+    pass'''
+
 
 
 if __name__ == "__main__":

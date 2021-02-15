@@ -41,6 +41,16 @@
             <!--<input type="password" id="inputPassword" class="form-control" required>
             <label for="inputPassword"></label>-->
           </div>
+
+          <div class="form-label-group mt-4">
+            <p class="text-muted"> Если вы администратор, введите пароль доступа (иначе ничего не вводите)</p>
+            {{ form.admin_code(class_="form-control") }}
+              {% for err in form.admin_code.errors %}
+                <p style="color: red">{{ err }}</p>                         
+              {% endfor %} 
+            <!--<input type="password" id="inputPassword" class="form-control" required>
+            <label for="inputPassword"></label>-->
+          </div>
                
           <div class="checkbox mb-3"></div>
             {{ form.submit(class_="btn btn-lg btn-danger btn-block") }}
