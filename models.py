@@ -50,3 +50,4 @@ class Order(db.Model):
     tel = db.Column(db.Integer, nullable=False)
     address = db.Column(db.String, nullable=False)
     dishes = db.relationship('Dish', secondary=dishes_orders_association, back_populates='orders')
+

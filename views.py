@@ -324,6 +324,7 @@ def restore_complete():
     else:
         return redirect('/restore/')
 
+
 @app.route('/logout/', methods=['POST'])
 def logout():
     if request.method == 'POST':
@@ -335,3 +336,4 @@ def logout():
 @app.route('/ordered/')
 def ordered():
     return render_template('ordered.html')
+
