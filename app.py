@@ -1,8 +1,8 @@
 from functools import wraps
 
-from flask import Flask
+from flask import Flask, redirect
 from flask_mail import Mail
-from flask_admin import Admin, AdminIndexView, expose
+from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 
 from config import Config
@@ -17,12 +17,11 @@ mail = Mail(app)
 db.init_app(app)
 
 
-'''class AdminIndex(AdminIndexView):
-    @expose('/')
-    def index(self):
-        if session.get('is_admin', False):
-            return self.render('admin/master.html')
-        return redirect('/')'''
+class MicroBlogModelView(ModelView):
+    def is_accessible(self):
+        return session.get('is_admin', False)
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect('/')
         
 
 admin = Admin(app)
@@ -32,22 +31,7 @@ admin.add_view(ModelView(Category, db.session))
 admin.add_view(ModelView(Order, db.session))
 
 
-def admin_only(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('is_admin'):
-            abort(403, description="Forbidden")	
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 from views import *
-
-
-'''@app.route('/admin/')
-@admin_only
-def adminka():
-    return render_template('admin/master.html')'''
 
 
 if __name__ == "__main__":
