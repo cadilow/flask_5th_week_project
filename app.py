@@ -1,5 +1,3 @@
-from functools import wraps
-
 from flask import Flask, redirect
 from flask_mail import Mail
 from flask_admin import Admin
