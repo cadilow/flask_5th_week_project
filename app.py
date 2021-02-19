@@ -1,10 +1,9 @@
-from flask import Flask, redirect
+from flask import Flask
 from flask_mail import Mail
-from flask_admin import Admin
-from flask_admin.contrib.sqla import ModelView
 
 from config import Config
-from models import db, User, Dish, Category, Order
+from models import db
+from admin import admin
 
 
 app = Flask(__name__)
@@ -14,19 +13,7 @@ mail = Mail(app)
 
 db.init_app(app)
 
-
-class MicroBlogModelView(ModelView):
-    def is_accessible(self):
-        return session.get('is_admin', False)
-    def inaccessible_callback(self, name, **kwargs):
-        return redirect('/')
-        
-
-admin = Admin(app)
-admin.add_view(ModelView(User, db.session))
-admin.add_view(ModelView(Dish, db.session))
-admin.add_view(ModelView(Category, db.session))
-admin.add_view(ModelView(Order, db.session))
+admin.init_app(app)
 
 
 from views import *

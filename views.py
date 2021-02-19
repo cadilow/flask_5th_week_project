@@ -15,6 +15,15 @@ from config import ADMIN_ACCESS, SENDER
 from months import months
 
 
+def dishes_count(count):
+    if count % 10 == 0 or 5 <= count % 10 <= 9 or 11 <= count % 100 <= 19:
+        session['dishes_count'] = "блюд"
+    elif count % 10 == 1:
+        session['dishes_count'] = "блюдо"
+    elif 2 <= count % 10 <= 4:
+        session['dishes_count'] = "блюда"
+
+
 @app.route('/')
 def main():
     categories = db.session.query(Category).all()
@@ -29,16 +38,18 @@ def main():
 
 @app.route('/precart/<id>/')
 def precart(id):
-    if id in session.get('cart', False):
-        session['error'] = 'Можно заказать только одну порцию блюда за раз'
-        session['cart_error'] = True
-        session['cart_error_confirm'] = True
-        return redirect('/cart/')
+    if session.get('cart', False):
+        if id in session.get('cart', False):
+            session['error'] = 'Можно заказать только одну порцию блюда за раз'
+            session['cart_error'] = True
+            session['cart_error_confirm'] = True
+            return redirect('/cart/')
     if session.get('cart', False):
         cart = session['cart']
     else:
         cart = []
     cart.append(id)
+    dishes_count(count=len(cart))
     session['cart'] = cart 
     if session.get('total', False) == False:
         session['total'] = 0
@@ -50,6 +61,7 @@ def precart(id):
 def delcart(id):
     cart = session['cart']
     cart.remove(id)
+    dishes_count(count=len(cart))
     session['cart'] = cart
     session['total'] -= db.session.query(Dish).filter(Dish.id==id).first().price 
     session['is_delete_dish'] = True

@@ -87,7 +87,7 @@
       <div class="col-7">
         <h4 class="mb-3 col-7 mb-5">
           {% if session['cart']|length > 0 %}
-          {{ session['cart']|length }} блюда в корзине
+          {{ session['cart']|length }} {{ session.get('dishes_count', False) }} в корзине
           {% else %}
           Корзина пуста
           {% endif %}

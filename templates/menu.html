@@ -13,7 +13,7 @@
       <a href="/cart/" class="text-white bg-dark">Корзина</a> 
       {% if session.get('total') %}
       {% if session['total'] > 0 %}
-      ({{ session['cart']|length }} блюда, {{ session['total'] }} руб)</p>
+      ({{ session['cart']|length }} {{ session.get('dishes_count', False) }}, {{ session['total'] }} руб)</p>
       {% endif %}
       {% endif %}
     <img class="ml-2"
